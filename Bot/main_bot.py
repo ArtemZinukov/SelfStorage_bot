@@ -83,13 +83,12 @@ def send_free_delivery(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
 def send_address_choice(message):
-    address_choice_message = '''
-Выберите адрес приема вещей:
-1. Дом
-2. Офис
-3. Другой адрес
-'''
-    bot.send_message(message.chat.id, address_choice_message)
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Мясницкая 60')
+    markup.row('Остоженка 62')
+    markup.row('Херсонская улица 38')
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Выберите адрес приема вещей:', reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
