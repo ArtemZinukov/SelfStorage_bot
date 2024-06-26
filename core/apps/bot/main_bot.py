@@ -115,9 +115,14 @@ def send_free_delivery(message):
 @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
 def send_address_choice(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Мясницкая 60', 'Остоженка 62')
-    markup.row('Херсонская улица 38', 'Вернуться на главную')
-    bot.send_message(message.chat.id, 'Выберите адрес приема вещей:', reply_markup=markup)
+    markup.row('Вернуться на главную')
+    storage_adress_message = '''
+Мы находимся по адресу:
+    1. Мясницкая 60
+    2. Остоженка 62
+    3. Херсонская улица 38
+'''
+    bot.send_message(message.chat.id, storage_adress_message, reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
