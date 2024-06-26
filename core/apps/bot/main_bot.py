@@ -9,17 +9,81 @@ env = Env()
 env.read_env()
 token = env.str("TG_BOT_TOKEN")
 bot = telebot.TeleBot(token)
-# bot = TeleBot(token)
+# bot = TeleBot(token).
+
+
+def save_name(message):
+    name = message.text
+    chat_id = message.chat.id
+    bot.send_message(chat_id,
+                     f'Отлично, {name}. Теперь укажите свой адрес')
+    bot.register_next_step_handler(message, save_address)
+
+
+def save_address(message):
+    chat_id = message.chat.id
+    bot.send_message(chat_id,
+                     f'Отлично, данные получены')
 
 
 @bot.message_handler(commands=['start'])
 def hear_menu(message):
     inline_markup = types.InlineKeyboardMarkup()
-    inline_markup.add(types.InlineKeyboardButton(text='Бесплатная доставка из дома', callback_data='prefix:Бесплатная доставка из дома'))
-    inline_markup.add(types.InlineKeyboardButton(text='Выбрать адрес приема вещей', callback_data='prefix:Выбрать адрес приема вещей'))
-    inline_markup.add(types.InlineKeyboardButton(text='Вернуться на главную', callback_data='prefix:Вернуться на главную'))
+    inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
+    inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
+    inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
     bot.send_message(message.chat.id, f'Привет!\nЭто сервис хранения вещей с доставкой.\nЗаберем вещи на наш склад, сохраним и привезем обратно',
                      reply_markup=inline_markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == 'prefix')
+def query_handler(call):
+    bot.answer_callback_query(callback_query_id=call.id)
+    data_ = call.data.split(":")[1]
+    if data_ == 'Заказать бокс':
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(text='Привезти самому', callback_data=f"prefix2:Привезти самому"))
+        inline_markup.add(types.InlineKeyboardButton(text='Бесплатная доставка из дома', callback_data=f"prefix2:Бесплатная доставка из дома"))
+        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix2:назад"))
+        bot.edit_message_text('Выберите подходящий вариант', call.message.chat.id, call.message.message_id,
+                              reply_markup=inline_markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == "prefix2")
+def querry_handler2(call):
+    data_ = call.data.split(":")[1]
+    inline_markup = types.InlineKeyboardMarkup()
+    if data_ == 'Привезти самому':
+        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix3:назад"))
+        bot.edit_message_text(f'Пункты приема:\nАдрес_1\nАдрес_2\nАдрес_3\n', call.message.chat.id, call.message.message_id, reply_markup=inline_markup)
+
+    elif data_ == 'Бесплатная доставка из дома':
+        bot.send_message(call.message.chat.id, f'Введите ваше имя')
+
+        @bot.message_handler(content_types=['text'])
+        def callback_order(message):
+            if message:
+                bot.register_next_step_handler(message, save_name)
+
+
+    elif data_ == 'назад':
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
+        inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
+        inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=inline_markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == "prefix3")
+def querry_handler2(call):
+    data_ = call.data.split(":")[1]
+    if data_ == 'назад':
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(text='Привезти самому', callback_data=f"prefix2:Привезти самому"))
+        inline_markup.add(types.InlineKeyboardButton(text='Бесплатная доставка из дома',
+                                                     callback_data=f"prefix2:Бесплатная доставка из дома"))
+        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix2:назад"))
+        bot.edit_message_text('Выберите подходящий вариант', call.message.chat.id, call.message.message_id,
+                              reply_markup=inline_markup)
 
 
 # def send_message_with_file(message, file_name):
