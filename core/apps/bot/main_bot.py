@@ -1,25 +1,13 @@
 from telebot import TeleBot
 from telebot.types import ReplyKeyboardMarkup
 from environs import Env
+import re
 
 
 env = Env()
 env.read_env()
 token = env.str("TG_BOT_TOKEN")
 bot = TeleBot(token)
-
-
-def save_name(message):
-    name = message.text
-    chat_id = message.chat.id
-    bot.send_message(chat_id, f'Отлично, {name}. Теперь укажите свой адрес')
-    bot.register_next_step_handler(message, save_address)
-
-
-def save_address(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id,
-                     f'Отлично, данные получены')
 
 
 def send_message_with_file(message, file_name):
@@ -55,6 +43,52 @@ def send_order_message(message):
 '''
     bot.send_message(message.chat.id, tariff_message, parse_mode='HTML')
     bot.send_message(message.chat.id, order_message, reply_markup=markup)
+
+
+def get_user_data(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+
+    user_data = {}
+
+    def ask_email(message):
+        bot.send_message(message.chat.id, 'Введите вашу электронную почту:', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_email)
+
+    def handle_email(message):
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(email_pattern, message.text):
+            user_data['email'] = message.text
+            ask_phone(message)
+        else:
+            bot.send_message(message.chat.id, 'Некорректный формат электронной почты. Пожалуйста, введите снова:',
+                             reply_markup=markup)
+            bot.register_next_step_handler(message, handle_email)
+
+    def ask_phone(message):
+        bot.send_message(message.chat.id, 'Введите ваш номер телефона: (Например: 78521503215)',
+                         reply_markup=markup)
+        bot.register_next_step_handler(message, handle_phone)
+
+    def handle_phone(message):
+        phone_pattern = r'^\7\d{10}$'
+        if re.match(phone_pattern, message.text):
+            user_data['phone'] = message.text
+            ask_address(message)
+        else:
+            bot.send_message(message.chat.id, 'Некорректный формат номера телефона. Пожалуйста, введите снова:',
+                             reply_markup=markup)
+            bot.register_next_step_handler(message, handle_phone)
+
+    def ask_address(message):
+        bot.send_message(message.chat.id, 'Введите ваш адрес:', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_address)
+
+    def handle_address(message):
+        user_data['address'] = message.text
+        bot.send_message(message.chat.id, 'Данные получены!', reply_markup=markup)
+
+    ask_email(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
@@ -105,11 +139,24 @@ def send_order(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Бесплатная доставка из дома')
 def send_free_delivery(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Самостоятельно сделаю замер', 'Замер сделает доставщик')
+    markup.row('Вернуться на главную')
     free_delivery_message = '''
 Бесплатная доставка из дома!
-Введите ваш адрес и мы доставим ваш заказ бесплатно.
+Выберите способ замера вещей:
 '''
-    bot.send_message(message.chat.id, free_delivery_message)
+    bot.send_message(message.chat.id, free_delivery_message, reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Самостоятельно сделаю замер')
+def get_user(message):
+    get_user_data(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Замер сделает доставщик')
+def get_user(message):
+    get_user_data(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
@@ -136,4 +183,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
