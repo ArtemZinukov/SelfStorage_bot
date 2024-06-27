@@ -7,8 +7,4 @@ class Order(models.Model):
     phone_number = models.CharField(verbose_name='Номер телефона', max_length=12, blank=True)
     date = models.CharField(verbose_name='Дата', max_length=20, blank=True)
     email = models.CharField(verbose_name='E-mail', max_length=30, blank=True)
-
-
-
-
-
+    qr_code = models.ImageField(upload_to='qr_codes', blank=True)

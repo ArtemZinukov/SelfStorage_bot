@@ -4,6 +4,11 @@ from environs import Env
 import re
 from core.apps.bot.models import Order
 import datetime
+import qrcode
+from PIL import Image
+from io import BytesIO
+from django.core.files.uploadedfile import InMemoryUploadedFile
+
 
 
 env = Env()
@@ -101,8 +106,18 @@ def get_user_data(message):
         order = Order.objects.last()
         order.address = message.text
         order.save()
+        generate_qr_code(order.pk)
         add_date()
         bot.send_message(message.chat.id, 'Данные получены!', reply_markup=markup)
+
+    def generate_qr_code(message):
+        order = Order.objects.last()
+        img = qrcode.make(message)
+        buffer = BytesIO()
+        img.save(buffer, 'PNG')
+        order.qr_code.save(f'qr_code_{order.pk}.png',
+                           InMemoryUploadedFile(buffer, None, 'qr_code.png', 'image/png', buffer.tell(), None))
+        order.save()
 
     def add_date():
         order = Order.objects.last()
@@ -119,6 +134,7 @@ def send_back_to_main(message):
     markup.row('Условия хранения')
     markup.row('Список запрещенных вещей')
     markup.row('Сделать заказ')
+    markup.row('Получить свой заказ')
     back_to_main_message = '''
 На главную
 '''
@@ -131,6 +147,7 @@ def send_welcome(message):
     markup.row('Условия хранения')
     markup.row('Список запрещенных вещей')
     markup.row('Сделать заказ')
+    markup.row('Получить свой заказ')
     start_message = '''
 Привет Мы SelfStorage!
 Когда мы понадобимся:
@@ -192,6 +209,27 @@ def send_address_choice(message):
     3. Херсонская улица 38
 '''
     bot.send_message(message.chat.id, storage_adress_message, reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Получить свой заказ')
+def get_orders(message):
+    orders = Order.objects.all()
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    for order in orders:
+        markup.row(f'Заказ {order.pk}')
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Выберите заказ:', reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: re.match(r'Заказ \d+', message.text))
+def show_qr_code(message):
+    order_id = int(re.search(r'\d+', message.text).group(0))
+    order = Order.objects.get(pk=order_id)
+    img = qrcode.make(str(order.pk))
+    buffer = BytesIO()
+    img.save(buffer, 'PNG')
+    bot.send_photo(message.chat.id, buffer.getvalue())
+    bot.send_message(message.chat.id, 'Вы можете вернуть свои вещи, если срок аренды не истек')
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
