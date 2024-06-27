@@ -2,6 +2,8 @@ from telebot import TeleBot
 from telebot.types import ReplyKeyboardMarkup
 from environs import Env
 import re
+from core.apps.bot.models import Order
+import datetime
 
 
 env = Env()
@@ -49,7 +51,14 @@ def get_user_data(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
 
-    user_data = {}
+    def ask_name(message):
+        bot.send_message(message.chat.id, 'Введите ваше имя', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_name)
+
+    def handle_name(message):
+        client_name = Order.objects.create(client_name=message.text)
+        client_name.save()
+        ask_email(message)
 
     def ask_email(message):
         bot.send_message(message.chat.id, 'Введите вашу электронную почту:', reply_markup=markup)
@@ -58,7 +67,9 @@ def get_user_data(message):
     def handle_email(message):
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if re.match(email_pattern, message.text):
-            user_data['email'] = message.text
+            order = Order.objects.last()
+            order.email = message.text
+            order.save()
             ask_phone(message)
         else:
             bot.send_message(message.chat.id, 'Некорректный формат электронной почты. Пожалуйста, введите снова:',
@@ -73,7 +84,9 @@ def get_user_data(message):
     def handle_phone(message):
         phone_pattern = r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$'
         if re.match(phone_pattern, message.text):
-            user_data['phone'] = message.text
+            order = Order.objects.last()
+            order.phone_number = message.text
+            order.save()
             ask_address(message)
         else:
             bot.send_message(message.chat.id, 'Некорректный формат номера телефона. Пожалуйста, введите снова:',
@@ -85,10 +98,19 @@ def get_user_data(message):
         bot.register_next_step_handler(message, handle_address)
 
     def handle_address(message):
-        user_data['address'] = message.text
+        order = Order.objects.last()
+        order.address = message.text
+        order.save()
+        add_date()
         bot.send_message(message.chat.id, 'Данные получены!', reply_markup=markup)
 
-    ask_email(message)
+    def add_date():
+        order = Order.objects.last()
+        current_date = datetime.date.today()
+        order.date = current_date
+        order.save()
+
+    ask_name(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
