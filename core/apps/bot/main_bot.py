@@ -5,10 +5,8 @@ import re
 from core.apps.bot.models import Order
 import datetime
 import qrcode
-from PIL import Image
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
-
 
 
 env = Env()
@@ -52,7 +50,7 @@ def send_order_message(message):
     bot.send_message(message.chat.id, order_message, reply_markup=markup)
 
 
-def get_user_data(message):
+def get_user_data_without_metering(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
 
@@ -116,7 +114,8 @@ def get_user_data(message):
         buffer = BytesIO()
         img.save(buffer, 'PNG')
         order.qr_code.save(f'qr_code_{order.pk}.png',
-                           InMemoryUploadedFile(buffer, None, 'qr_code.png', 'image/png', buffer.tell(), None))
+                           InMemoryUploadedFile(buffer, None, 'qr_code.png', 'image/png',
+                                                buffer.tell(), None))
         order.save()
 
     def add_date():
@@ -126,6 +125,35 @@ def get_user_data(message):
         order.save()
 
     ask_name(message)
+
+
+def get_user_data_with_metering(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+
+    def get_user_data(message):
+        get_user_data_without_metering(message)
+        bot.register_next_step_handler(message, ask_volume)
+
+    def ask_volume(message):
+        bot.send_message(message.chat.id, 'Введите объем вещей в м³:', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_volume)
+
+    def handle_volume(message):
+        try:
+            volume = float(message.text)
+            if volume <= 0:
+                bot.send_message(message.chat.id, 'Объем должен быть положительным числом.')
+                ask_volume(message)
+            else:
+                order = Order.objects.last()
+                order.volume = volume
+                order.save()
+        except ValueError:
+            bot.send_message(message.chat.id, 'Объем должен быть числом.')
+            ask_volume(message)
+
+    get_user_data(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
@@ -190,12 +218,12 @@ def send_free_delivery(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Самостоятельно сделаю замер')
 def get_user(message):
-    get_user_data(message)
+    get_user_data_with_metering(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Замер сделает доставщик')
 def get_user(message):
-    get_user_data(message)
+    get_user_data_without_metering(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
