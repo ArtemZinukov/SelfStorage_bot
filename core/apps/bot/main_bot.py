@@ -26,14 +26,18 @@ def save_address(message):
                      f'Отлично, данные получены')
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(content_types=['text'])
 def hear_menu(message):
-    inline_markup = types.InlineKeyboardMarkup()
-    inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
-    inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
-    inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
-    bot.send_message(message.chat.id, f'Привет!\nЭто сервис хранения вещей с доставкой.\nЗаберем вещи на наш склад, сохраним и привезем обратно',
-                     reply_markup=inline_markup)
+    if message.text == '/start':
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
+        inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
+        inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
+        bot.send_message(message.chat.id, f'Привет!\nЭто сервис хранения вещей с доставкой.\nЗаберем вещи на наш склад, сохраним и привезем обратно',
+                         reply_markup=inline_markup)
+    elif message.text:
+        save_name(message)
+
 
 
 @bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == 'prefix')
@@ -59,10 +63,9 @@ def querry_handler2(call):
     elif data_ == 'Бесплатная доставка из дома':
         bot.send_message(call.message.chat.id, f'Введите ваше имя')
 
-        @bot.message_handler(content_types=['text'])
-        def callback_order(message):
-            if message:
-                bot.register_next_step_handler(message, save_name)
+
+
+
 
 
     elif data_ == 'назад':
@@ -84,6 +87,9 @@ def querry_handler2(call):
         inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix2:назад"))
         bot.edit_message_text('Выберите подходящий вариант', call.message.chat.id, call.message.message_id,
                               reply_markup=inline_markup)
+
+
+
 
 
 # def send_message_with_file(message, file_name):
