@@ -1,188 +1,185 @@
 from telebot import TeleBot
 from telebot.types import ReplyKeyboardMarkup
 from environs import Env
-import telebot
-from telebot import types
+import re
 
 
 env = Env()
 env.read_env()
 token = env.str("TG_BOT_TOKEN")
-bot = telebot.TeleBot(token)
-# bot = TeleBot(token).
+bot = TeleBot(token)
 
 
-def save_name(message):
-    name = message.text
-    chat_id = message.chat.id
-    bot.send_message(chat_id,
-                     f'Отлично, {name}. Теперь укажите свой адрес')
-    bot.register_next_step_handler(message, save_address)
+def send_message_with_file(message, file_name):
+    with open(file_name, 'r', encoding='utf-8') as file:
+        text = file.read()
+    bot.send_message(message.chat.id, text)
 
 
-def save_address(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id,
-                     f'Отлично, данные получены')
+def send_order_message(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Бесплатная доставка из дома')
+    markup.row('Выбрать адрес приема вещей')
+    markup.row('Вернуться на главную')
+    tariff_message = '''
+Тарифы:
+    Мало вещей:
+        0.5 м³ - <b>1800 руб. в месяц</b> 
+        (Поместятся детские игрушки и коляска, до пяти коробок или одна стиральная машина.)  
+        1.5 м³ - <b>2900 руб. в месяц</b>
+        (Подойдет для хранения мелкой бытовой техники) 
+        3 м³ - <b>4900 руб. в месяц</b>
+        (Достаточно места для некрупной мебели: стульев, комода и телевизора.) 
+    Много вещей:
+        6 м³ - <b>8800 руб. в месяц</b>
+        (Поместятся крупные вещи и мебель: угловой диван и двухспальная кровать с матрасом.)  
+        9 м³ - <b>12900 руб. в месяц</b>
+        (Много места. Влезут несколько больших шкафов, кухня, крупная бытовая техника.) 
+        18 м³ - <b>18900 руб. в месяц</b>
+        (Полноценный склад: достаточно места для содержимого нескольких комнат.) 
+'''
+    order_message = '''
+Выберите способ доставки:
+'''
+    bot.send_message(message.chat.id, tariff_message, parse_mode='HTML')
+    bot.send_message(message.chat.id, order_message, reply_markup=markup)
 
 
-@bot.message_handler(content_types=['text'])
-def hear_menu(message):
-    if message.text == '/start':
-        inline_markup = types.InlineKeyboardMarkup()
-        inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
-        inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
-        inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
-        bot.send_message(message.chat.id, f'Привет!\nЭто сервис хранения вещей с доставкой.\nЗаберем вещи на наш склад, сохраним и привезем обратно',
-                         reply_markup=inline_markup)
-    elif message.text:
-        save_name(message)
+def get_user_data(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+
+    user_data = {}
+
+    def ask_email(message):
+        bot.send_message(message.chat.id, 'Введите вашу электронную почту:', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_email)
+
+    def handle_email(message):
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(email_pattern, message.text):
+            user_data['email'] = message.text
+            ask_phone(message)
+        else:
+            bot.send_message(message.chat.id, 'Некорректный формат электронной почты. Пожалуйста, введите снова:',
+                             reply_markup=markup)
+            bot.register_next_step_handler(message, handle_email)
+
+    def ask_phone(message):
+        bot.send_message(message.chat.id, 'Введите ваш номер телефона: (Например: 78521503215)',
+                         reply_markup=markup)
+        bot.register_next_step_handler(message, handle_phone)
+
+    def handle_phone(message):
+        phone_pattern = r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$'
+        if re.match(phone_pattern, message.text):
+            user_data['phone'] = message.text
+            ask_address(message)
+        else:
+            bot.send_message(message.chat.id, 'Некорректный формат номера телефона. Пожалуйста, введите снова:',
+                             reply_markup=markup)
+            bot.register_next_step_handler(message, handle_phone)
+
+    def ask_address(message):
+        bot.send_message(message.chat.id, 'Введите ваш адрес:', reply_markup=markup)
+        bot.register_next_step_handler(message, handle_address)
+
+    def handle_address(message):
+        user_data['address'] = message.text
+        bot.send_message(message.chat.id, 'Данные получены!', reply_markup=markup)
+
+    ask_email(message)
 
 
-
-@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == 'prefix')
-def query_handler(call):
-    bot.answer_callback_query(callback_query_id=call.id)
-    data_ = call.data.split(":")[1]
-    if data_ == 'Заказать бокс':
-        inline_markup = types.InlineKeyboardMarkup()
-        inline_markup.add(types.InlineKeyboardButton(text='Привезти самому', callback_data=f"prefix2:Привезти самому"))
-        inline_markup.add(types.InlineKeyboardButton(text='Бесплатная доставка из дома', callback_data=f"prefix2:Бесплатная доставка из дома"))
-        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix2:назад"))
-        bot.edit_message_text('Выберите подходящий вариант', call.message.chat.id, call.message.message_id,
-                              reply_markup=inline_markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == "prefix2")
-def querry_handler2(call):
-    data_ = call.data.split(":")[1]
-    inline_markup = types.InlineKeyboardMarkup()
-    if data_ == 'Привезти самому':
-        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix3:назад"))
-        bot.edit_message_text(f'Пункты приема:\nАдрес_1\nАдрес_2\nАдрес_3\n', call.message.chat.id, call.message.message_id, reply_markup=inline_markup)
-
-    elif data_ == 'Бесплатная доставка из дома':
-        bot.send_message(call.message.chat.id, f'Введите ваше имя')
+@bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
+def send_back_to_main(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Условия хранения')
+    markup.row('Список запрещенных вещей')
+    markup.row('Сделать заказ')
+    back_to_main_message = '''
+На главную
+'''
+    bot.send_message(message.chat.id, back_to_main_message, reply_markup=markup)
 
 
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Условия хранения')
+    markup.row('Список запрещенных вещей')
+    markup.row('Сделать заказ')
+    start_message = '''
+Привет Мы SelfStorage!
+Когда мы понадобимся:
+
+1.Для ваших личных вещей
+2.Для бизнеса
+3.Ремонт
+4.Переезд
+5.И всё, что угодно
+'''
+    bot.send_message(message.chat.id, start_message, reply_markup=markup)
 
 
+@bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
+def send_prohibited_items(message):
+    send_message_with_file(message, 'core/apps/bot/prohibited_items.txt')
 
 
-    elif data_ == 'назад':
-        inline_markup = types.InlineKeyboardMarkup()
-        inline_markup.add(types.InlineKeyboardButton(text='Тарифы', callback_data='prefix:Тарифы'))
-        inline_markup.add(types.InlineKeyboardButton(text='Условия хранения', callback_data='prefix:Условия хранения'))
-        inline_markup.add(types.InlineKeyboardButton(text='Заказать бокс', callback_data='prefix:Заказать бокс'))
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=inline_markup)
+@bot.message_handler(func=lambda message: message.text == 'Условия хранения')
+def send_store_conditions(message):
+    send_message_with_file(message, 'core/apps/bot/store_conditions.txt')
 
 
-@bot.callback_query_handler(func=lambda call: call.data.split(":")[0] == "prefix3")
-def querry_handler2(call):
-    data_ = call.data.split(":")[1]
-    if data_ == 'назад':
-        inline_markup = types.InlineKeyboardMarkup()
-        inline_markup.add(types.InlineKeyboardButton(text='Привезти самому', callback_data=f"prefix2:Привезти самому"))
-        inline_markup.add(types.InlineKeyboardButton(text='Бесплатная доставка из дома',
-                                                     callback_data=f"prefix2:Бесплатная доставка из дома"))
-        inline_markup.add(types.InlineKeyboardButton(text='👈 назад 👈', callback_data="prefix2:назад"))
-        bot.edit_message_text('Выберите подходящий вариант', call.message.chat.id, call.message.message_id,
-                              reply_markup=inline_markup)
+@bot.message_handler(func=lambda message: message.text == 'Сделать заказ')
+def send_order(message):
+    send_order_message(message)
 
 
+@bot.message_handler(func=lambda message: message.text == 'Бесплатная доставка из дома')
+def send_free_delivery(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Самостоятельно сделаю замер', 'Замер сделает доставщик')
+    markup.row('Вернуться на главную')
+    free_delivery_message = '''
+Бесплатная доставка из дома!
+Выберите способ замера вещей:
+'''
+    bot.send_message(message.chat.id, free_delivery_message, reply_markup=markup)
 
 
+@bot.message_handler(func=lambda message: message.text == 'Самостоятельно сделаю замер')
+def get_user(message):
+    get_user_data(message)
 
-# def send_message_with_file(message, file_name):
-#     with open(file_name, 'r', encoding='utf-8') as file:
-#         text = file.read()
-#     bot.send_message(message.chat.id, text)
-#
-#
-# def send_order_message(message):
-#     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-#     markup.row('Бесплатная доставка из дома')
-#     markup.row('Выбрать адрес приема вещей')
-#     markup.row('Вернуться на главную')
-#     order_message = '''
-# Выберите способ доставки:
-# '''
-#     bot.send_message(message.chat.id, order_message, reply_markup=markup)
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
-# def send_back_to_main(message):
-#     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-#     markup.row('Условия хранения')
-#     markup.row('Список запрещенных вещей')
-#     markup.row('Сделать заказ')
-#     back_to_main_message = '''
-# Вернуться на главную:
-# '''
-#     bot.send_message(message.chat.id, back_to_main_message, reply_markup=markup)
-#
-#
-# @bot.message_handler(commands=['start'])
-# def send_welcome(message):
-#     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-#     markup.row('Условия хранения')
-#     markup.row('Список запрещенных вещей')
-#     markup.row('Сделать заказ')
-#     start_message = '''
-# Привет Мы SelfStorage!
-# Когда мы понадобимся:
-#
-# 1.Для ваших личных вещей
-# 2.Для бизнеса
-# 3.Ремонт
-# 4.Переезд
-# 5.И всё, что угодно
-# '''
-#     bot.send_message(message.chat.id, start_message, reply_markup=markup)
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
-# def send_prohibited_items(message):
-#     send_message_with_file(message, 'prohibited_items.txt')
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Условия хранения')
-# def send_store_conditions(message):
-#     send_message_with_file(message, 'store_conditions.txt')
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Сделать заказ')
-# def send_order(message):
-#     send_order_message(message)
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Бесплатная доставка из дома')
-# def send_free_delivery(message):
-#     free_delivery_message = '''
-# Бесплатная доставка из дома!
-# Введите ваш адрес и мы доставим ваш заказ бесплатно.
-# '''
-#     bot.send_message(message.chat.id, free_delivery_message)
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
-# def send_address_choice(message):
-#     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-#     markup.row('Мясницкая 60')
-#     markup.row('Остоженка 62')
-#     markup.row('Херсонская улица 38')
-#     markup.row('Вернуться на главную')
-#     bot.send_message(message.chat.id, 'Выберите адрес приема вещей:', reply_markup=markup)
-#
-#
-# @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
-# def send_back_to_main(message):
-#     send_back_to_main(message)
-#
-#
-# def main():
-#     bot.infinity_polling()
-#
-#
-# if __name__ == "__main__":
-#     main()
 
+@bot.message_handler(func=lambda message: message.text == 'Замер сделает доставщик')
+def get_user(message):
+    get_user_data(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
+def send_address_choice(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+    storage_adress_message = '''
+Мы находимся по адресу:
+    1. Мясницкая 60
+    2. Остоженка 62
+    3. Херсонская улица 38
+'''
+    bot.send_message(message.chat.id, storage_adress_message, reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
+def send_back_to_main(message):
+    send_back_to_main(message)
+
+
+def main():
+    bot.infinity_polling()
+
+
+if __name__ == "__main__":
+    main()
