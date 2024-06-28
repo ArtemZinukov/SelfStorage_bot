@@ -55,119 +55,122 @@ def send_order_message(message):
     bot.send_message(message.chat.id, order_message, reply_markup=markup)
 
 
+def ask_name(message):
+    bot.send_message(message.chat.id, 'Введите ваше имя')
+    bot.register_next_step_handler(message, handle_name)
+
+
+def handle_name(message):
+    client_name = Order.objects.create(client_name=message.text)
+    client_name.save()
+
+
+def ask_volume(message):
+    bot.send_message(message.chat.id, 'Введите объем вещей в м³:')
+    bot.register_next_step_handler(message, handle_volume)
+
+
+def handle_volume(message):
+    try:
+        volume = float(message.text)
+        if volume <= 0:
+            bot.send_message(message.chat.id, 'Объем должен быть положительным числом.')
+            ask_volume(message)
+        else:
+            order = Order.objects.last()
+            order.volume = volume
+            order.save()
+            ask_email(message)
+    except ValueError:
+        bot.send_message(message.chat.id, 'Объем должен быть числом.')
+        ask_volume(message)
+
+
+def ask_email(message):
+    bot.send_message(message.chat.id, 'Введите вашу электронную почту:')
+    bot.register_next_step_handler(message, handle_email)
+
+
+def handle_email(message):
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if re.match(email_pattern, message.text):
+        order = Order.objects.last()
+        order.email = message.text
+        order.save()
+        ask_phone(message)
+    else:
+        bot.send_message(message.chat.id, 'Некорректный формат электронной почты. Пожалуйста, введите снова:')
+        bot.register_next_step_handler(message, handle_email)
+
+
+def ask_phone(message):
+    bot.send_message(message.chat.id, 'Введите ваш номер телефона: (Например: 78521503215)')
+    bot.register_next_step_handler(message, handle_phone)
+
+
+def handle_phone(message):
+    phone_pattern = r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$'
+    if re.match(phone_pattern, message.text):
+        order = Order.objects.last()
+        order.phone_number = message.text
+        order.save()
+        ask_address(message)
+    else:
+        bot.send_message(message.chat.id, 'Некорректный формат номера телефона. Пожалуйста, введите снова:')
+        bot.register_next_step_handler(message, handle_phone)
+
+
+def ask_address(message):
+    bot.send_message(message.chat.id, 'Введите ваш адрес:')
+    bot.register_next_step_handler(message, handle_address)
+
+
+def handle_address(message):
+    order = Order.objects.last()
+    order.address = message.text
+    order.save()
+    generate_qr_code(order.pk)
+    add_date()
+    bot.send_message(message.chat.id, f'Заказ оформлен. № заказа {order.pk}')
+
+
+def generate_qr_code(message):
+    order = Order.objects.last()
+    img = qrcode.make(message)
+    buffer = BytesIO()
+    img.save(buffer, 'PNG')
+    order.qr_code.save(f'qr_code_{order.pk}.png',
+                       InMemoryUploadedFile(buffer, None, 'qr_code.png', 'image/png',
+                                            buffer.tell(), None))
+    order.save()
+
+
+def add_date():
+    order = Order.objects.last()
+    current_date = datetime.date.today()
+    order.date = current_date
+    order.save()
+
+
 def get_user_data_without_metering(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
-
-    def ask_name(message):
-        bot.send_message(message.chat.id, 'Введите ваше имя', reply_markup=markup)
-        bot.register_next_step_handler(message, handle_name)
-
-    def handle_name(message):
-        client_name = Order.objects.create(client_name=message.text)
-        client_name.save()
-        ask_email(message)
-
-    def ask_email(message):
-        bot.send_message(message.chat.id, 'Введите вашу электронную почту:', reply_markup=markup)
-        bot.register_next_step_handler(message, handle_email)
-
-    def handle_email(message):
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if re.match(email_pattern, message.text):
-            order = Order.objects.last()
-            order.email = message.text
-            order.save()
-            ask_phone(message)
-        else:
-            bot.send_message(message.chat.id, 'Некорректный формат электронной почты. Пожалуйста, введите снова:',
-                             reply_markup=markup)
-            bot.register_next_step_handler(message, handle_email)
-
-    def ask_phone(message):
-        bot.send_message(message.chat.id, 'Введите ваш номер телефона: (Например: 78521503215)',
-                         reply_markup=markup)
-        bot.register_next_step_handler(message, handle_phone)
-
-    def handle_phone(message):
-        phone_pattern = r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$'
-        if re.match(phone_pattern, message.text):
-            order = Order.objects.last()
-            order.phone_number = message.text
-            order.save()
-            ask_address(message)
-        else:
-            bot.send_message(message.chat.id, 'Некорректный формат номера телефона. Пожалуйста, введите снова:',
-                             reply_markup=markup)
-            bot.register_next_step_handler(message, handle_phone)
-
-    def ask_address(message):
-        bot.send_message(message.chat.id, 'Введите ваш адрес:', reply_markup=markup)
-        bot.register_next_step_handler(message, handle_address)
-
-    def handle_address(message):
-        order = Order.objects.last()
-        order.address = message.text
-        order.save()
-        generate_qr_code(order.pk)
-        add_date()
-        bot.send_message(message.chat.id, f'Заказ оформлен. № заказа {order.pk}', reply_markup=markup)
-
-    def generate_qr_code(message):
-        order = Order.objects.last()
-        img = qrcode.make(message)
-        buffer = BytesIO()
-        img.save(buffer, 'PNG')
-        order.qr_code.save(f'qr_code_{order.pk}.png',
-                           InMemoryUploadedFile(buffer, None, 'qr_code.png', 'image/png',
-                                                buffer.tell(), None))
-        order.save()
-
-    def add_date():
-        order = Order.objects.last()
-        current_date = datetime.date.today()
-        order.date = current_date
-        order.save()
-
     ask_name(message)
+    bot.register_next_step_handler(message, ask_email)
 
 
 def get_user_data_with_metering(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
-
-    def get_user_data(message):
-        get_user_data_without_metering(message)
-        bot.register_next_step_handler(message, ask_volume)
-
-    def ask_volume(message):
-        bot.send_message(message.chat.id, 'Введите объем вещей в м³:', reply_markup=markup)
-        bot.register_next_step_handler(message, handle_volume)
-
-    def handle_volume(message):
-        try:
-            volume = float(message.text)
-            if volume <= 0:
-                bot.send_message(message.chat.id, 'Объем должен быть положительным числом.')
-                ask_volume(message)
-            else:
-                order = Order.objects.last()
-                order.volume = volume
-                order.save()
-        except ValueError:
-            bot.send_message(message.chat.id, 'Объем должен быть числом.')
-            ask_volume(message)
-
-    get_user_data(message)
+    ask_name(message)
+    bot.register_next_step_handler(message, ask_volume)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
 def send_back_to_main(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Условия хранения')
-    markup.row('Список запрещенных вещей')
-    markup.row('Сделать заказ')
-    markup.row('Получить свой заказ')
+    markup.row('Условия хранения', 'Список запрещенных вещей')
+    markup.row('Сделать заказ', 'Получить свой заказ')
     back_to_main_message = '''
 На главную
 '''
@@ -177,10 +180,8 @@ def send_back_to_main(message):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Условия хранения')
-    markup.row('Список запрещенных вещей')
-    markup.row('Сделать заказ')
-    markup.row('Получить свой заказ')
+    markup.row('Условия хранения', 'Список запрещенных вещей')
+    markup.row('Сделать заказ', 'Получить свой заказ')
     start_message = '''
 Привет Мы SelfStorage!
 Когда мы понадобимся:
