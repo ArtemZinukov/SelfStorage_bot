@@ -21,6 +21,11 @@ def send_message_with_file(message, file_name):
     bot.send_message(message.chat.id, text)
 
 
+def send_pd_consent_file(message, file_name):
+    with open(file_name, 'rb') as file:
+        bot.send_document(message.chat.id, file)
+
+
 def send_order_message(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Бесплатная доставка из дома')
@@ -200,6 +205,19 @@ def send_store_conditions(message):
 
 
 @bot.message_handler(func=lambda message: message.text == 'Сделать заказ')
+def get_personal_data_consent(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Согласен')
+    markup.row('Вернуться на главную')
+    send_pd_consent_file(message, 'core/apps/bot/pd_consent.pdf')
+    message_text = '''
+Прочитайте файл и подтвердите согласие, при выборе 
+<b>"Вернуться на главную"</b>, вы отказываетесь от обработки ПД.   
+    '''
+    bot.send_message(message.chat.id, message_text, parse_mode='HTML', reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Согласен')
 def send_order(message):
     send_order_message(message)
 
