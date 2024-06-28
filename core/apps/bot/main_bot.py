@@ -261,7 +261,27 @@ def send_address_choice(message):
 @bot.message_handler(func=lambda message: message.text == 'Получить свой заказ')
 def get_orders(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Забрать полный комплект вещей')
+    markup.row('Забрать частичный комплект вещей')
     markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, "Выберите действие", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Забрать полный комплект вещей')
+def get_full_order(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Заберу сам')
+    markup.row('Оформить доставку')
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
+    bot.register_next_step_handler(message, show_qr_code)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Забрать частичный комплект вещей')
+def get_partial_order(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Вы можете вернуть свои вещи, если срок аренды не истек')
     bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
     bot.register_next_step_handler(message, show_qr_code)
 
@@ -273,7 +293,6 @@ def show_qr_code(message):
     buffer = BytesIO()
     img.save(buffer, 'PNG')
     bot.send_photo(message.chat.id, buffer.getvalue())
-    bot.send_message(message.chat.id, 'Вы можете вернуть свои вещи, если срок аренды не истек')
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
