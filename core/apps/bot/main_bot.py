@@ -106,7 +106,7 @@ def get_user_data_without_metering(message):
         order.save()
         generate_qr_code(order.pk)
         add_date()
-        bot.send_message(message.chat.id, 'Данные получены!', reply_markup=markup)
+        bot.send_message(message.chat.id, f'Заказ оформлен. № заказа {order.pk}', reply_markup=markup)
 
     def generate_qr_code(message):
         order = Order.objects.last()
@@ -241,17 +241,14 @@ def send_address_choice(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Получить свой заказ')
 def get_orders(message):
-    orders = Order.objects.all()
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    for order in orders:
-        markup.row(f'Заказ {order.pk}')
     markup.row('Вернуться на главную')
-    bot.send_message(message.chat.id, 'Выберите заказ:', reply_markup=markup)
+    bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
+    bot.register_next_step_handler(message, show_qr_code)
 
 
-@bot.message_handler(func=lambda message: re.match(r'Заказ \d+', message.text))
 def show_qr_code(message):
-    order_id = int(re.search(r'\d+', message.text).group(0))
+    order_id = int(message.text)
     order = Order.objects.get(pk=order_id)
     img = qrcode.make(str(order.pk))
     buffer = BytesIO()
