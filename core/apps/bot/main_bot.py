@@ -273,8 +273,38 @@ def get_full_order(message):
     markup.row('Заберу сам')
     markup.row('Оформить доставку')
     markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Выберите способ получения вещей:', reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Заберу сам')
+def get_order_myself(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
     bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
     bot.register_next_step_handler(message, show_qr_code)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Оформить доставку')
+def get_order_delivery(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Оформить')
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Стоимость доставки - 900 руб.', reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Оформить')
+def confirm_order(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Введите номер вашего заказа:')
+    bot.register_next_step_handler(message, confirm_order_step2)
+
+
+def confirm_order_step2(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, 'Доставка успешно оформлена. Заказ привезут с 11:00-16:00',
+                     reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Забрать частичный комплект вещей')
@@ -293,6 +323,7 @@ def show_qr_code(message):
     buffer = BytesIO()
     img.save(buffer, 'PNG')
     bot.send_photo(message.chat.id, buffer.getvalue())
+    bot.send_message(message.chat.id, "Заказ находится по адресу Херсонская улица 38")
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
