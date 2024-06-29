@@ -11,9 +11,6 @@ class Order(models.Model):
     qr_code = models.ImageField(upload_to='qr_codes', blank=True)
     delivery = models.BooleanField(verbose_name='Доставка', default=False)
 
-    def __str__(self):
-        return self.pk
-
     class Meta:
         verbose_name = 'Заказ'
         verbose_name_plural = 'Заказы'
