@@ -7,6 +7,7 @@ import datetime
 import qrcode
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from core.apps.bot.count_refferals import count_referrals, count_referrals_message
 
 
 env = Env()
@@ -166,13 +167,12 @@ def get_user_data_with_metering(message):
     bot.register_next_step_handler(message, ask_volume)
 
 
-@bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
 def send_back_to_main(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Условия хранения', 'Список запрещенных вещей')
     markup.row('Сделать заказ', 'Получить свой заказ')
     back_to_main_message = '''
-На главную
+Выберите действие: 
 '''
     bot.send_message(message.chat.id, back_to_main_message, reply_markup=markup)
 
@@ -180,19 +180,89 @@ def send_back_to_main(message):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Условия хранения', 'Список запрещенных вещей')
-    markup.row('Сделать заказ', 'Получить свой заказ')
+    markup.row("Вконтакте", "Instagram")
+    markup.row("Яндекс", "От знакомых")
     start_message = '''
 Привет Мы SelfStorage!
+
 Когда мы понадобимся:
 
-1.Для ваших личных вещей
-2.Для бизнеса
-3.Ремонт
-4.Переезд
-5.И всё, что угодно
+    1.Для ваших личных вещей
+    2.Для бизнеса
+    3.Ремонт
+    4.Переезд
+    5.И всё, что угодно
+    
+Откуда вы узнали о нас?
 '''
     bot.send_message(message.chat.id, start_message, reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Вконтакте')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Instagram')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Яндекс')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'От знакомых')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Админка')
+def enter_to_admin_panel(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Получить число переходов с рекламы")
+    markup.row("Посмотреть заказы с доставкой")
+    markup.row("Посмотреть просроченные заказы")
+    markup.row("Вернуться на главную")
+    bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Получить число переходов с рекламы')
+def get_number_conversions_ads(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("от Вконтакте", "от Instagram")
+    markup.row("от Яндекс", "Вернуться на главную")
+    bot.send_message(message.chat.id, "Выберите рекламу", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Вконтакте')
+def handle_vk_referrals(message):
+    ads_source = "Вконтакте"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Instagram')
+def handle_vk_referrals(message):
+    ads_source = "Instagram"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Яндекс')
+def handle_vk_referrals(message):
+    ads_source = "Яндекс"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
 
 
 @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
@@ -327,7 +397,7 @@ def show_qr_code(message):
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
-def send_back_to_main(message):
+def send_back(message):
     send_back_to_main(message)
 
 

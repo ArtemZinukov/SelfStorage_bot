@@ -10,3 +10,10 @@ class Order(models.Model):
     volume = models.CharField(verbose_name='Объем вещей', max_length=30, blank=True)
     qr_code = models.ImageField(upload_to='qr_codes', blank=True)
 
+
+class Referrals(models.Model):
+    link = models.CharField(verbose_name="Откуда пришли", max_length=200, unique=True)
+    count = models.IntegerField(verbose_name="Количество переходов", default=0)
+
+    def __str__(self):
+        return self.link
