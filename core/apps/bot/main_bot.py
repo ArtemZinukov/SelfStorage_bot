@@ -93,7 +93,7 @@ def ask_email(message):
 
 
 def handle_email(message):
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[+a-zA-Z0-9.-]\.[a-zA-Z]{2,}$'
     if re.match(email_pattern, message.text):
         order = Order.objects.last()
         order.email = message.text
@@ -150,6 +150,7 @@ def add_date():
     order = Order.objects.last()
     current_date = datetime.date.today()
     order.date = current_date
+    order.delivery = True
     order.save()
 
 
@@ -183,7 +184,7 @@ def send_welcome(message):
     markup.row("Вконтакте", "Instagram")
     markup.row("Яндекс", "От знакомых")
     start_message = '''
-Привет Мы SelfStorage!
+Привет Мы SelfStorage!   
 
 Когда мы понадобимся:
 
@@ -263,6 +264,15 @@ def handle_vk_referrals(message):
     ads_source = "Яндекс"
     number_of_jumps = count_referrals_message(ads_source)
     bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'Посмотреть заказы с доставкой')
+def get_orders_with_delivery(message):
+    orders_with_delivery = Order.objects.filter(delivery=True)
+    bot.send_message(message.chat.id, "Заказы оформленные с доставкой:")
+    for order in orders_with_delivery:
+        bot.send_message(message.chat.id, f"Заказ номер {order.pk}: Номер телефона - {order.phone_number}, "
+                                          f"адрес - {order.address}")
 
 
 @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')

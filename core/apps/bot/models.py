@@ -9,6 +9,14 @@ class Order(models.Model):
     email = models.CharField(verbose_name='E-mail', max_length=30, blank=True)
     volume = models.CharField(verbose_name='Объем вещей', max_length=30, blank=True)
     qr_code = models.ImageField(upload_to='qr_codes', blank=True)
+    delivery = models.BooleanField(verbose_name='Доставка', default=False)
+
+    def __str__(self):
+        return self.pk
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
 
 
 class Referrals(models.Model):
@@ -17,3 +25,7 @@ class Referrals(models.Model):
 
     def __str__(self):
         return self.link
+
+    class Meta:
+        verbose_name = 'Реферал'
+        verbose_name_plural = 'Рефералы'
