@@ -19,7 +19,7 @@ bot = TeleBot(token)
 def send_message_with_file(message, file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
         text = file.read()
-    bot.send_message(message.chat.id, text)
+    bot.send_message(message.chat.id, text, parse_mode='HTML')
 
 
 def send_pd_consent_file(message, file_name):
@@ -33,27 +33,21 @@ def send_order_message(message):
     markup.row('Выбрать адрес приема вещей')
     markup.row('Вернуться на главную')
     tariff_message = '''
-Тарифы:
-    Мало вещей:
-        0.5 м³ - <b>1800 руб. в месяц</b> 
-        (Поместятся детские игрушки и коляска, до пяти коробок или одна стиральная машина.)  
-        1.5 м³ - <b>2900 руб. в месяц</b>
-        (Подойдет для хранения мелкой бытовой техники) 
-        3 м³ - <b>4900 руб. в месяц</b>
-        (Достаточно места для некрупной мебели: стульев, комода и телевизора.) 
-    Много вещей:
-        6 м³ - <b>8800 руб. в месяц</b>
-        (Поместятся крупные вещи и мебель: угловой диван и двухспальная кровать с матрасом.)  
-        9 м³ - <b>12900 руб. в месяц</b>
-        (Много места. Влезут несколько больших шкафов, кухня, крупная бытовая техника.) 
-        18 м³ - <b>18900 руб. в месяц</b>
-        (Полноценный склад: достаточно места для содержимого нескольких комнат.) 
-'''
-    order_message = '''
+Тарифы на хранение вещей
+
+<b>Мало вещей</b>
+• 0.5 м³: 1800 руб. в месяц (детские игрушки, коляска, до 5 коробок или стиральная машина)
+• 1.5 м³: 2900 руб. в месяц (мелкая бытовая техника)
+• 3 м³: 4900 руб. в месяц (некрупная мебель: стулья, комод, телевизор)
+
+<b>Много вещей</b>
+• 6 м³: 8800 руб. в месяц (крупные вещи и мебель: угловой диван, двухспальная кровать с матрасом)
+• 9 м³: 12900 руб. в месяц (много места: несколько больших шкафов, кухня, крупная бытовая техника)
+• 18 м³: 18900 руб. в месяц (полноценный склад: содержимое нескольких комнат)
+
 Выберите способ доставки:
 '''
-    bot.send_message(message.chat.id, tariff_message, parse_mode='HTML')
-    bot.send_message(message.chat.id, order_message, reply_markup=markup)
+    bot.send_message(message.chat.id, tariff_message, parse_mode='HTML', reply_markup=markup)
 
 
 def ask_name(message):
@@ -184,19 +178,20 @@ def send_welcome(message):
     markup.row("Вконтакте", "Instagram")
     markup.row("Яндекс", "От знакомых")
     start_message = '''
-Привет Мы SelfStorage!   
+Привет!
+Мы <b>SelfStorage</b> - ваше надежное пространство для хранения вещей!
 
-Когда мы понадобимся:
+Когда вам может потребоваться наша помощь:
 
-    1.Для ваших личных вещей
-    2.Для бизнеса
-    3.Ремонт
-    4.Переезд
-    5.И всё, что угодно
+    • для хранения личных вещей;
+    • для бизнеса;
+    • при ремонте;
+    • при переезде;
+    • и в любых других ситуациях, когда вам нужно дополнительное хранилище.
     
 Откуда вы узнали о нас?
 '''
-    bot.send_message(message.chat.id, start_message, reply_markup=markup)
+    bot.send_message(message.chat.id, start_message, reply_markup=markup, parse_mode='HTML')
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вконтакте')
@@ -292,9 +287,9 @@ def get_personal_data_consent(message):
     markup.row('Вернуться на главную')
     send_pd_consent_file(message, 'core/apps/bot/pd_consent.pdf')
     message_text = '''
-Прочитайте файл и подтвердите согласие, при выборе 
-<b>"Вернуться на главную"</b>, вы отказываетесь от обработки ПД.   
-    '''
+Ознакомьтесь с файлом и подтвердите согласие.
+"Вернуться на главную" означает отказ от обработки персональных данных.   
+'''
     bot.send_message(message.chat.id, message_text, parse_mode='HTML', reply_markup=markup)
 
 
