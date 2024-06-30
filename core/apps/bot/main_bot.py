@@ -325,10 +325,13 @@ def send_address_choice(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
     storage_adress_message = '''
-Мы находимся по адресу:
-    1. Мясницкая 60
-    2. Остоженка 62
-    3. Херсонская улица 38
+Адреса наших складов:
+
+    1. Мясницкая,60
+    2. Остоженка,62
+    3. Херсонская улица,38
+    
+Замер вещей производится непосредственно на складе.
 '''
     bot.send_message(message.chat.id, storage_adress_message, reply_markup=markup)
 
