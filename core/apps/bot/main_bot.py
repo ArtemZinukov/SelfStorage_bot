@@ -3,11 +3,11 @@ from telebot.types import ReplyKeyboardMarkup
 from environs import Env
 import re
 from core.apps.bot.models import Order
-import datetime
+from datetime import datetime, timedelta
 import qrcode
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
-
+from core.apps.bot.count_refferals import count_referrals, count_referrals_message
 
 env = Env()
 env.read_env()
@@ -18,7 +18,7 @@ bot = TeleBot(token)
 def send_message_with_file(message, file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
         text = file.read()
-    bot.send_message(message.chat.id, text)
+    bot.send_message(message.chat.id, text, parse_mode='HTML')
 
 
 def send_pd_consent_file(message, file_name):
@@ -32,27 +32,21 @@ def send_order_message(message):
     markup.row('Выбрать адрес приема вещей')
     markup.row('Вернуться на главную')
     tariff_message = '''
-Тарифы:
-    Мало вещей:
-        0.5 м³ - <b>1800 руб. в месяц</b> 
-        (Поместятся детские игрушки и коляска, до пяти коробок или одна стиральная машина.)  
-        1.5 м³ - <b>2900 руб. в месяц</b>
-        (Подойдет для хранения мелкой бытовой техники) 
-        3 м³ - <b>4900 руб. в месяц</b>
-        (Достаточно места для некрупной мебели: стульев, комода и телевизора.) 
-    Много вещей:
-        6 м³ - <b>8800 руб. в месяц</b>
-        (Поместятся крупные вещи и мебель: угловой диван и двухспальная кровать с матрасом.)  
-        9 м³ - <b>12900 руб. в месяц</b>
-        (Много места. Влезут несколько больших шкафов, кухня, крупная бытовая техника.) 
-        18 м³ - <b>18900 руб. в месяц</b>
-        (Полноценный склад: достаточно места для содержимого нескольких комнат.) 
-'''
-    order_message = '''
+Тарифы на хранение вещей
+
+<b>Мало вещей</b>
+• 0.5 м³: 1800 руб. в месяц (детские игрушки, коляска, до 5 коробок или стиральная машина)
+• 1.5 м³: 2900 руб. в месяц (мелкая бытовая техника)
+• 3 м³: 4900 руб. в месяц (некрупная мебель: стулья, комод, телевизор)
+
+<b>Много вещей</b>
+• 6 м³: 8800 руб. в месяц (крупные вещи и мебель: угловой диван, двухспальная кровать с матрасом)
+• 9 м³: 12900 руб. в месяц (много места: несколько больших шкафов, кухня, крупная бытовая техника)
+• 18 м³: 18900 руб. в месяц (полноценный склад: содержимое нескольких комнат)
+
 Выберите способ доставки:
 '''
-    bot.send_message(message.chat.id, tariff_message, parse_mode='HTML')
-    bot.send_message(message.chat.id, order_message, reply_markup=markup)
+    bot.send_message(message.chat.id, tariff_message, parse_mode='HTML', reply_markup=markup)
 
 
 def ask_name(message):
@@ -92,7 +86,7 @@ def ask_email(message):
 
 
 def handle_email(message):
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[+a-zA-Z0-9.-]\.[a-zA-Z]{2,}$'
     if re.match(email_pattern, message.text):
         order = Order.objects.last()
         order.email = message.text
@@ -147,8 +141,14 @@ def generate_qr_code(message):
 
 def add_date():
     order = Order.objects.last()
-    current_date = datetime.date.today()
-    order.date = current_date
+    current_date = datetime.now()
+    format_current_date = current_date.strftime("%m/%d/%Y %H:%M:%S")
+    order.date = format_current_date
+    order.delivery = True
+    delta = timedelta(minutes=5)
+    end_date = current_date + delta
+    format_end_date = end_date.strftime("%m/%d/%Y %H:%M:%S")
+    order.end_date = format_end_date
     order.save()
 
 
@@ -166,13 +166,12 @@ def get_user_data_with_metering(message):
     bot.register_next_step_handler(message, ask_volume)
 
 
-@bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
 def send_back_to_main(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Условия хранения', 'Список запрещенных вещей')
     markup.row('Сделать заказ', 'Получить свой заказ')
     back_to_main_message = '''
-На главную
+Выберите действие: 
 '''
     bot.send_message(message.chat.id, back_to_main_message, reply_markup=markup)
 
@@ -180,19 +179,99 @@ def send_back_to_main(message):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Условия хранения', 'Список запрещенных вещей')
-    markup.row('Сделать заказ', 'Получить свой заказ')
+    markup.row("Вконтакте", "Instagram")
+    markup.row("Яндекс", "От знакомых")
     start_message = '''
-Привет Мы SelfStorage!
-Когда мы понадобимся:
+Привет!
+Мы <b>SelfStorage</b> - ваше надежное пространство для хранения вещей!
 
-1.Для ваших личных вещей
-2.Для бизнеса
-3.Ремонт
-4.Переезд
-5.И всё, что угодно
+Когда вам может потребоваться наша помощь:
+
+    • для хранения личных вещей;
+    • для бизнеса;
+    • при ремонте;
+    • при переезде;
+    • и в любых других ситуациях, когда вам нужно дополнительное хранилище.
+
+Откуда вы узнали о нас?
 '''
-    bot.send_message(message.chat.id, start_message, reply_markup=markup)
+    bot.send_message(message.chat.id, start_message, reply_markup=markup, parse_mode='HTML')
+
+
+@bot.message_handler(func=lambda message: message.text == 'Вконтакте')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Instagram')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Яндекс')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'От знакомых')
+def numbers_of_transitions_vk(message):
+    count_referrals(message.text)
+    bot.send_message(message.chat.id, "Спасибо, за ответ!")
+    send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Админка')
+def enter_to_admin_panel(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Получить число переходов с рекламы")
+    markup.row("Посмотреть заказы с доставкой")
+    markup.row("Посмотреть просроченные заказы")
+    markup.row("Вернуться на главную")
+    bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Получить число переходов с рекламы')
+def get_number_conversions_ads(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("от Вконтакте", "от Instagram")
+    markup.row("от Яндекс", "Вернуться на главную")
+    bot.send_message(message.chat.id, "Выберите рекламу", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Вконтакте')
+def handle_vk_referrals(message):
+    ads_source = "Вконтакте"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Instagram')
+def handle_vk_referrals(message):
+    ads_source = "Instagram"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'от Яндекс')
+def handle_vk_referrals(message):
+    ads_source = "Яндекс"
+    number_of_jumps = count_referrals_message(ads_source)
+    bot.send_message(message.chat.id, f"Количество переходов из {ads_source} = {number_of_jumps}")
+
+
+@bot.message_handler(func=lambda message: message.text == 'Посмотреть заказы с доставкой')
+def get_orders_with_delivery(message):
+    orders_with_delivery = Order.objects.filter(delivery=True)
+    bot.send_message(message.chat.id, "Заказы оформленные с доставкой:")
+    for order in orders_with_delivery:
+        bot.send_message(message.chat.id, f"Заказ номер {order.pk}: Номер телефона - {order.phone_number}, "
+                                          f"адрес - {order.address}")
 
 
 @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
@@ -212,9 +291,9 @@ def get_personal_data_consent(message):
     markup.row('Вернуться на главную')
     send_pd_consent_file(message, 'core/apps/bot/pd_consent.pdf')
     message_text = '''
-Прочитайте файл и подтвердите согласие, при выборе 
-<b>"Вернуться на главную"</b>, вы отказываетесь от обработки ПД.   
-    '''
+Ознакомьтесь с файлом и подтвердите согласие.
+"Вернуться на главную" означает отказ от обработки персональных данных.   
+'''
     bot.send_message(message.chat.id, message_text, parse_mode='HTML', reply_markup=markup)
 
 
@@ -250,10 +329,13 @@ def send_address_choice(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Вернуться на главную')
     storage_adress_message = '''
-Мы находимся по адресу:
-    1. Мясницкая 60
-    2. Остоженка 62
-    3. Херсонская улица 38
+Адреса наших складов:
+
+    1. Мясницкая,60
+    2. Остоженка,62
+    3. Херсонская улица,38
+
+Замер вещей производится непосредственно на складе.
 '''
     bot.send_message(message.chat.id, storage_adress_message, reply_markup=markup)
 
@@ -327,7 +409,7 @@ def show_qr_code(message):
 
 
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
-def send_back_to_main(message):
+def send_back(message):
     send_back_to_main(message)
 
 

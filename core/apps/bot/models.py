@@ -6,6 +6,7 @@ class Order(models.Model):
     address = models.CharField(verbose_name='Адрес', max_length=200, blank=True)
     phone_number = models.CharField(verbose_name='Номер телефона', max_length=12, blank=True)
     date = models.CharField(verbose_name='Дата', max_length=20, blank=True)
+    end_date = models.CharField(verbose_name='Дата окончания', max_length=20, blank=True)
     email = models.CharField(verbose_name='E-mail', max_length=30, blank=True)
     volume = models.CharField(verbose_name='Объем вещей', max_length=30, blank=True)
     qr_code = models.ImageField(upload_to='qr_codes', blank=True)
@@ -26,3 +27,4 @@ class Referrals(models.Model):
     class Meta:
         verbose_name = 'Реферал'
         verbose_name_plural = 'Рефералы'
+
