@@ -2,5 +2,6 @@ pytelegrambotapi==4.20.0
 Django==5.0.6
 environs==11.0.0
 qrcode[pil]
+secure-smtplib==0.1.1
 
 
