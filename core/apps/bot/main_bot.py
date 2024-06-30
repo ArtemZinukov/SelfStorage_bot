@@ -274,6 +274,15 @@ def get_orders_with_delivery(message):
                                           f"адрес - {order.address}")
 
 
+@bot.message_handler(func=lambda message: message.text == 'Посмотреть просроченные заказы')
+def get_orders_with_delivery(message):
+    orders_with_delivery = Order.objects.filter(delivery=True)
+    bot.send_message(message.chat.id, "Просроченные заказы:")
+    for order in orders_with_delivery:
+        bot.send_message(message.chat.id, f"Заказ номер {order.pk}: Номер телефона - {order.phone_number}, "
+                                          f"адрес - {order.address}")
+
+
 @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
 def send_prohibited_items(message):
     send_message_with_file(message, 'core/apps/bot/prohibited_items.txt')
