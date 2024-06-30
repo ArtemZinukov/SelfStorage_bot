@@ -86,7 +86,7 @@ def ask_email(message):
 
 
 def handle_email(message):
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[+a-zA-Z0-9.-]\.[a-zA-Z]{2,}$'
+    email_pattern = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
     if re.match(email_pattern, message.text):
         order = Order.objects.last()
         order.email = message.text
@@ -186,7 +186,6 @@ def send_welcome(message):
 Мы <b>SelfStorage</b> - ваше надежное пространство для хранения вещей!
 
 Когда вам может потребоваться наша помощь:
-<<<<<<< HEAD
 
     • для хранения личных вещей;
     • для бизнеса;
@@ -194,15 +193,6 @@ def send_welcome(message):
     • при переезде;
     • и в любых других ситуациях, когда вам нужно дополнительное хранилище.
 
-=======
-
-    • для хранения личных вещей;
-    • для бизнеса;
-    • при ремонте;
-    • при переезде;
-    • и в любых других ситуациях, когда вам нужно дополнительное хранилище.
-    
->>>>>>> 646ce9d8f3cd372f214e122c1ad8a0a4a7609bfd
 Откуда вы узнали о нас?
 '''
     bot.send_message(message.chat.id, start_message, reply_markup=markup, parse_mode='HTML')

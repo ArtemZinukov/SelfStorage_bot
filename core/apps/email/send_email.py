@@ -41,21 +41,28 @@ def send_message(email, messag):
 
 def scan_dates():
     while True:
-        orders = Order.objects.all()
-        for order in orders:
-            current_date = datetime.now()
-            format_current_date = current_date.strftime("%m/%d/%Y %H:%M:%S")
-            format_current_date_f = datetime.strptime(format_current_date, '%m/%d/%Y %H:%M:%S')
-            end_date_f = datetime.strptime(order.end_date, '%m/%d/%Y %H:%M:%S')
-            if end_date_f - format_current_date_f == timedelta(minutes=3):
-                message = '1 месяц'
-                send_message(order.email, message)
-            elif end_date_f - format_current_date_f == timedelta(minutes=2):
-                message = '2 недели'
-                send_message(order.email, message)
-            elif end_date_f - format_current_date_f == timedelta(minutes=1):
-                message = '3 дня'
-                send_message(order.email, message)
+        try:
+            orders = Order.objects.all()
+            for order in orders:
+                current_date = datetime.now()
+                format_current_date = current_date.strftime("%m/%d/%Y %H:%M:%S")
+                format_current_date_f = datetime.strptime(format_current_date, '%m/%d/%Y %H:%M:%S')
+                end_date_f = datetime.strptime(order.end_date, '%m/%d/%Y %H:%M:%S')
+                if end_date_f - format_current_date_f == timedelta(minutes=3):
+                    message = '1 месяц'
+                    send_message(order.email, message)
+                elif end_date_f - format_current_date_f == timedelta(minutes=2):
+                    message = '2 недели'
+                    send_message(order.email, message)
+                elif end_date_f - format_current_date_f == timedelta(minutes=1):
+                    message = '3 дня'
+                    send_message(order.email, message)
+                elif format_current_date_f > end_date_f:
+                    order.delay = True
+                    order.save()
+        except ValueError:
+            continue
+
 
 
 def main():

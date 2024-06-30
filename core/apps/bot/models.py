@@ -11,6 +11,7 @@ class Order(models.Model):
     volume = models.CharField(verbose_name='Объем вещей', max_length=30, blank=True)
     qr_code = models.ImageField(upload_to='qr_codes', blank=True)
     delivery = models.BooleanField(verbose_name='Доставка', default=False)
+    delay = models.BooleanField(verbose_name='Просрочка', default=False)
 
     class Meta:
         verbose_name = 'Заказ'
