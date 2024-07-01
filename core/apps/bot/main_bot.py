@@ -14,6 +14,8 @@ env.read_env()
 token = env.str("TG_BOT_TOKEN")
 bot = TeleBot(token)
 
+previous_messages = {}
+
 
 def send_message_with_file(message, file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
@@ -50,7 +52,9 @@ def send_order_message(message):
 
 
 def ask_name(message):
-    bot.send_message(message.chat.id, 'Введите ваше имя')
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Назад', 'Вернуться на главную')
+    bot.send_message(message.chat.id, 'Введите ваше имя', reply_markup=markup)
     bot.register_next_step_handler(message, handle_name)
 
 
@@ -153,27 +157,51 @@ def add_date():
 
 
 def get_user_data_without_metering(message):
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Вернуться на главную')
     ask_name(message)
-    bot.register_next_step_handler(message, ask_email)
+    bot.register_next_step_handler(message, handle_order_without_metering)
+
+
+def handle_order_without_metering(message):
+    if message.text == 'Назад':
+        send_free_delivery(message)
+    elif message.text == 'Вернуться на главную':
+        send_back_to_main(message)
+    else:
+        ask_email(message)
 
 
 def get_user_data_with_metering(message):
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Вернуться на главную')
     ask_name(message)
-    bot.register_next_step_handler(message, ask_volume)
+    bot.register_next_step_handler(message, handle_order_with_metering)
+
+
+def handle_order_with_metering(message):
+    if message.text == 'Назад':
+        send_free_delivery(message)
+    elif message.text == 'Вернуться на главную':
+        send_back_to_main(message)
+    else:
+        ask_volume(message)
 
 
 def send_back_to_main(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Условия хранения', 'Список запрещенных вещей')
-    markup.row('Сделать заказ', 'Получить свой заказ')
+    markup.row('Сделать заказ')
+    markup.row('Правила пользования', 'Получить свой заказ')
     back_to_main_message = '''
 Выберите действие: 
 '''
     bot.send_message(message.chat.id, back_to_main_message, reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Правила пользования')
+def handle_rules_message(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Условия хранения')
+    markup.row('Список запрещенных вещей')
+    markup.row('Вернуться на главную')
+    bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
+    previous_messages[message.chat.id] = "Выберите действие:"
 
 
 @bot.message_handler(commands=['start'])
@@ -285,11 +313,19 @@ def get_orders_with_delay(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Список запрещенных вещей')
 def send_prohibited_items(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Назад")
+    previous_messages[message.chat.id] = 'Правила пользования'
+    bot.send_message(message.chat.id, "Список запрещенных вещей:", reply_markup=markup)
     send_message_with_file(message, 'core/apps/bot/prohibited_items.txt')
 
 
 @bot.message_handler(func=lambda message: message.text == 'Условия хранения')
 def send_store_conditions(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Назад")
+    previous_messages[message.chat.id] = 'Правила пользования'
+    bot.send_message(message.chat.id, "Условия хранения:", reply_markup=markup)
     send_message_with_file(message, 'core/apps/bot/store_conditions.txt')
 
 
@@ -315,7 +351,8 @@ def send_order(message):
 def send_free_delivery(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Самостоятельно сделаю замер', 'Замер сделает доставщик')
-    markup.row('Вернуться на главную')
+    markup.row("Назад", 'Вернуться на главную')
+    previous_messages[message.chat.id] = 'Сделать заказ'
     free_delivery_message = '''
 Бесплатная доставка из дома!
 Выберите способ замера вещей:
@@ -336,7 +373,8 @@ def get_user(message):
 @bot.message_handler(func=lambda message: message.text == 'Выбрать адрес приема вещей')
 def send_address_choice(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Вернуться на главную')
+    markup.row("Назад", 'Вернуться на главную')
+    previous_messages[message.chat.id] = 'Сделать заказ'
     storage_adress_message = '''
 Адреса наших складов:
 
@@ -361,25 +399,26 @@ def get_orders(message):
 @bot.message_handler(func=lambda message: message.text == 'Забрать полный комплект вещей')
 def get_full_order(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Заберу сам')
-    markup.row('Оформить доставку')
-    markup.row('Вернуться на главную')
+    markup.row('Заберу сам', 'Оформить доставку')
+    markup.row('Назад', 'Вернуться на главную')
+    previous_messages[message.chat.id] = 'Получить свой заказ'
     bot.send_message(message.chat.id, 'Выберите способ получения вещей:', reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Заберу сам')
 def get_order_myself(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Вернуться на главную')
+    markup.row('Назад', 'Вернуться на главную')
     bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
-    bot.register_next_step_handler(message, show_qr_code)
+    bot.register_next_step_handler(message, handle_order_id)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Оформить доставку')
 def get_order_delivery(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Оформить')
-    markup.row('Вернуться на главную')
+    markup.row('Назад', 'Вернуться на главную')
+    previous_messages[message.chat.id] = 'Забрать полный комплект вещей'
     bot.send_message(message.chat.id, 'Стоимость доставки - 900 руб.', reply_markup=markup)
 
 
@@ -401,10 +440,20 @@ def confirm_order_step2(message):
 @bot.message_handler(func=lambda message: message.text == 'Забрать частичный комплект вещей')
 def get_partial_order(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('Вернуться на главную')
+    markup.row('Назад', 'Вернуться на главную')
+    previous_messages[message.chat.id] = 'Получить свой заказ'
     bot.send_message(message.chat.id, 'Вы можете вернуть свои вещи, если срок аренды не истек')
     bot.send_message(message.chat.id, 'Введите номер вашего заказа:', reply_markup=markup)
-    bot.register_next_step_handler(message, show_qr_code)
+    bot.register_next_step_handler(message, handle_order_id)
+
+
+def handle_order_id(message):
+    if message.text == 'Назад':
+        get_orders(message)
+    elif message.text == 'Вернуться на главную':
+        send_back_to_main(message)
+    else:
+        show_qr_code(message)
 
 
 def show_qr_code(message):
@@ -420,6 +469,21 @@ def show_qr_code(message):
 @bot.message_handler(func=lambda message: message.text == 'Вернуться на главную')
 def send_back(message):
     send_back_to_main(message)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Назад')
+def back_to_previous_message(message):
+    previous_message = previous_messages.get(message.chat.id)
+    if previous_message == "Правила пользования":
+        handle_rules_message(message)
+    elif previous_message == 'Сделать заказ':
+        send_order_message(message)
+    elif previous_message == 'Бесплатная доставка из дома':
+        send_free_delivery(message)
+    elif previous_message == 'Получить свой заказ':
+        get_orders(message)
+    elif previous_message == 'Забрать полный комплект вещей':
+        get_full_order(message)
 
 
 def main():
