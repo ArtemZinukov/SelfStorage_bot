@@ -275,10 +275,10 @@ def get_orders_with_delivery(message):
 
 
 @bot.message_handler(func=lambda message: message.text == 'Посмотреть просроченные заказы')
-def get_orders_with_delivery(message):
-    orders_with_delivery = Order.objects.filter(delivery=True)
+def get_orders_with_delay(message):
+    orders_with_delay = Order.objects.filter(delay=True)
     bot.send_message(message.chat.id, "Просроченные заказы:")
-    for order in orders_with_delivery:
+    for order in orders_with_delay:
         bot.send_message(message.chat.id, f"Заказ номер {order.pk}: Номер телефона - {order.phone_number}, "
                                           f"адрес - {order.address}")
 
