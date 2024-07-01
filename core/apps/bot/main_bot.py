@@ -268,8 +268,13 @@ def enter_to_admin_panel(message):
 def get_number_conversions_ads(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("от Вконтакте", "от Instagram")
-    markup.row("от Яндекс", "Вернуться на главную")
+    markup.row("от Яндекс", "В меню админки")
     bot.send_message(message.chat.id, "Выберите рекламу", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'В меню админки')
+def back_to_admin_main(message):
+    enter_to_admin_panel(message)
 
 
 @bot.message_handler(func=lambda message: message.text == 'от Вконтакте')
