@@ -32,6 +32,7 @@ def send_order_message(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row('Бесплатная доставка из дома')
     markup.row('Выбрать адрес приема вещей')
+    markup.row('Услуга для юрлиц')
     markup.row('Вернуться на главную')
     tariff_message = '''
 Тарифы на хранение вещей
@@ -46,9 +47,35 @@ def send_order_message(message):
 • 9 м³: 12900 руб. в месяц (много места: несколько больших шкафов, кухня, крупная бытовая техника)
 • 18 м³: 18900 руб. в месяц (полноценный склад: содержимое нескольких комнат)
 
-Выберите способ доставки:
+Выберите услугу:
 '''
     bot.send_message(message.chat.id, tariff_message, parse_mode='HTML', reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Услуга для юрлиц')
+def handle_service_for_legal_entities(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row('Выбрать количество стеллажей')
+    markup.row('Назад')
+    message_info = '''
+Данная услуга предоставляет хранение документов!
+
+Аренда стеллажа составляет:
+
+    1 стеллаж: 899 руб. в месяц 
+'''
+    bot.send_message(message.chat.id, message_info, reply_markup=markup)
+    previous_messages[message.chat.id] = "Сделать заказ"
+
+
+@bot.message_handler(func=lambda message: message.text == 'Выбрать количество стеллажей')
+def handle_select_storage(message):
+    bot.send_message(message.chat.id, 'Введите количество стеллажей:')
+    bot.register_next_step_handler(message, confirm_storage_rental)
+
+
+def confirm_storage_rental(message):
+    bot.send_message(message.chat.id, f'Вы арендовали {message.text} стеллажей')
 
 
 def ask_name(message):
